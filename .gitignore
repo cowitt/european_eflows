@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+results_scen/
+input/
+figures/
+no_res/
+EMP/
+scripts/maps.R
+scripts/main_analysis.R
+scripts/script_eflow_code_merging.R
+scripts/scatter.R
