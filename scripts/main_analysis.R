@@ -284,6 +284,8 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
     b = tn/tp
     b <- log(b)
     
+  # analyses of dam effects  
+    a = df_dam(v, no_scen_nodams = F)
     
     
   # with percentage of scenario 0 
