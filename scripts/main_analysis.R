@@ -41,8 +41,8 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
   GRAND_data <- read.dbf("input/GRanD_reservoirs_v1_3.dbf", as.is=T)
   
   # create daily matrix of monthly water demand
-  ndays <- rep(c(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31),10)
-  period <- c(1:3650) #simulation period (in total 3650 days, from 1991 to 2000)
+  # ndays <- rep(c(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31),10)
+  # period <- c(1:3650) #simulation period (in total 3650 days, from 1991 to 2000)
   # might need repairing, I don't know in which season the model starts (needed for box model version)
   # day_season <- rep(c(rep("win",59),rep("spr",92),rep("sum",92),rep("fal",92),rep("win",31)),10)
   # day_season<-day_season[period];rm(period)
@@ -150,12 +150,7 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
         
         no_spinup <- if (dry_vs_wet == FALSE) 366:3650 else  NULL
         
-        # #when several variables have to be pulled
-        # several_vars = list(
-        #   "denitrification" = c("F_Nd_Rs_r", "F_Nd_dn_r", "F_Nd_up_r"),
-        #   "fixation" = c("F_Nfix_Rs_r", "F_Nfix_dn_r", "F_Nfix_up_r")
-        # )
-        
+     
         dams_char = as.character(dams_bas)
         
         
@@ -273,20 +268,38 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
     
 #### Analysis 1 variables that are analysed on basin scale ####
     
-   v =  pull_scen_var(vars = "S_Rs_r",stat = mean, resolution = "dam")
+   v =  pull_scen_var(vars = "F_Nb_Rs_r",stat = mean, resolution = "dam")
     
    a = df_dam(v)
+   
     
-  #TN:TP sometimes translatio to molar weights is needed
-    tn = a[,2:9] * 1000000 / 14.01
-    tp = a[,2:9] * 1000000 / 30.97
+   # analyses of dam effects scenario 0 vs. -1 
+   tn = df_dam(v, no_scen_nodams = F)
+   
+   tn = tn[,1:3]
+   
+   # TN:TP sometimes translation to molar weights is needed
+    tn = a[,2:9]  / 14.01
+    tp = a[,2:9]  / 30.97
     
     b = tn/tp
     b <- log(b)
     
-  # analyses of dam effects  
-    a = df_dam(v, no_scen_nodams = F)
+   # Residence time = median(S_Rs_r)/total(Q_Rs + Q_down_r) 
+    RT = sr[2:9]/(qr[2:9]+qs[2:9])
+    RT[RT == 0] <- NA 
     
+    RT =  ((RT[,2:8]-RT[,1])/RT[,1])*100
+    RT[is.na(RT)] = 0
+    names(RT) = paste0(names(RT),"_rt")
+    RT$damID = damids #percentage calc ==> damIDs need to be reattached
+    
+  # dry and wet season comparison
+    tn =  pull_scen_var(vars = "F_Nb_Rs_r",stat = mean, resolution = "dam", dry_vs_wet = "dry")
+    
+    a =  df_dam(tn)
+
+    yo = tn %>% left_join(tp, by = "damID") # this gets passed to scatter.R
     
   # with percentage of scenario 0 
     names(a)
@@ -295,20 +308,53 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
     b <- ((a[,3:9]-a[,2])/a[,2])*100
     
     b[is.na(b)] = 0
+    names(b)[1:7] = paste0(names(b)[1:7],"_wet")
     
+    b$damID = damids #percentage calc ==> damIDs need to be reattached
+     
+    yo = b %>% left_join(RT, by ="damID")# %>% left_join(a, by="damID") #yo is passed to scatter.R
     
   # simple bar plot  
     l <- melt(b)
 
     ggplot(l) + geom_boxplot(aes(x=variable, y=value,fill=variable))+
-      ggtitle(expression("Change in TN:TP ratio, compared to scenario 0, wet season"))  +
+      ggtitle(expression("Change in burial, compared to scenario 0, wet season"))  +
       theme_bw()+theme(axis.title.y=element_text(size=25),axis.title.x=element_blank(), plot.title = element_text(size=15),
                        axis.text = element_text(size=18),legend.position = "none")+
-      ylab("% change")#+ylim(c(0.7911,3.80))
+      ylab("% change")+ylim(c(-92,100))
     
     # #1000x650 
+
+#### in-depth analyses of observed patterns ####
+    v =  pull_scen_var(vars = "TN_inflow",stat = median, resolution = "dam")
     
+    ti = df_dam(v)
+    ti <- ((ti[,3:9]-ti[,2])/ti[,2])*100
+    ti$damID = damids
+    
+    names(to) = paste0(names(ti),"_to")
+    to = ((to[,3:9]-to[,2])/to[,2])*100
+    to$damID = damids
+    
+    yo = to_full %>%left_join(to, by ="damID") %>% left_join(ti, by ="damID")
    
+    alldams = array(0)
+    
+    for(i in 1:7){
+      col1 = paste0("scenario ",i)
+      col2 = paste0("scenario ",i,"_ti")
+      col3 = paste0("scenario ",i,"_to")
+      sy = yo[,c("damID",col1, col2, col3)] #subset to only required cols
+      
+      ### Assessing tn inflow/outflow and reasons for high tn outflow
+      sy_filtered <- sy %>% filter(.data[[col1]]/3285 > 0.5) %>% #9 years
+        filter(.data[[col3]] > 10 * .data[[col2]]) %>% pull(damID)
+      
+      alldams = c(alldams, sy_filtered)
+    }
+    alldams = unique(alldams)
+    
+    
 #### Analysis 2: Across estuaries ####
     v =  pull_scen_var(vars = "S_Rs_r",stat = median, resolution = "estuary")
     a = df_estuary(v)
