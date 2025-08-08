@@ -11,6 +11,7 @@ The following details the contents of this repo and the modelling steps performe
 ### Analysis and processing scripts:
 - main_analysis.R: pre-process all modelled variables for analyses and plotting
 - wet_dry.R: creates a matrix with 0, 1, 2 indicating dry (1) and wet (2) days (wet_dry_season.RDS)
+- scatter.R: scatter plots across scenarios
 
 ## Procedure
 ![Image](https://github.com/user-attachments/assets/bb5e5c0f-b375-4154-9475-3e77e65ba965)
