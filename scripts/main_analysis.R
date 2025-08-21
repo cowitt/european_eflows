@@ -230,23 +230,23 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
       }
 
     
-## convert to dataframe
+## convert to dataframe/get the right subset
     
-    df_dam = function(lisa = v, no_scen_nodams = T){#no dams only needed for first analyses
+    df_dam = function(lisa = v, scen_nodams = T){#no dams only needed for first analyses
       a = as.data.frame(array(NA, c(0, 10)))
       names(a) <- names(lisa[[1]])
       for (i in 1:length(lisa)) {
         bas <- lisa[[i]]
         a <- rbind(a, bas)
       }
-      if(no_scen_nodams){
+      if(scen_nodams){
       a = a %>% select(-`scenario -1`)
       }
       return(a)#this contains a column of damIDs
     }
     
         
-    df_estuary = function(lisa = v, no_scen_nodams = T){
+    df_estuary = function(lisa = v, scen_nodams = T){
       a <- as.data.frame(array(NA,c(0,9)))
       names(a) <- names(lisa[[1]])
       
@@ -258,66 +258,83 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
         a[i,] <- bas
         rownames(a)[i] <- basn[i]
       }
-      if(no_scen_nodams){
+      if(scen_nodams){
         a = a %>% select(-`scenario -1`)
       }
       return(a)#does not contain a column of damIDs, rownames are basin names
     }
     
-  
+## convert to percentage of scenario 0
+    pct_vs_scenario0 = function(a, suffix = "_new_data"){
+      
+      if(ncol(a)!= 9 | nrow(a) != 769)return(NULL)
+      if(names(a)[2] != "scenario 0")return(NULL)
+      
+      a[a == 0] <- NA 
+      
+      b <- ((a[,3:9]-a[,2])/a[,2])*100
+      
+      b[is.na(b)] = 0
+      names(b)[1:7] = paste0(names(b)[1:7],suffix)
+      
+      b$damID = a$damID
+      return(b)
+    }
     
 #### Analysis 1 variables that are analysed on basin scale ####
-    # Residence time = median(S_Rs_r)/total(Q_Rs + Q_down_r) 
-   v =  pull_scen_var(vars = "TN_inflow",stat = mean, resolution = "dam")
     
+##this is the standard procedure 
+    ##1 get the variable of interest (3285 days = 9 years, spin-up already removed)
+      v =  pull_scen_var(vars = "TN_inflow",stat = mean, resolution = "dam")
+    
+    ##2 pull the right resolution dam or estuary
+      a = df_dam(v)
+    
+    ##3 (optional) calculate the difference to scenario 0
+      b = pct_vs_scenario0(a, suffix = "_tni")
+    
+    ##4 merge different datasets to pass to scatter.R
+      yo = b %>% left_join(c, by ="damID")
+      
+
+ ## Residence time = median(S_Rs_r)/total(Q_Rs_r + Q_down_r) 
+   v =  pull_scen_var(vars = "denitrification",stat = mean, resolution = "dam")
+   
    a = df_dam(v)
+
+       RT = sr[,2:9]/(qr[,2:9]+qs[,2:9])
+       RT = RT*3285
+       RT[RT == Inf]=0
+       names(den)[3:9] = paste0(names(den)[3:9],"_den")
    
-    
-   # analyses of dam effects scenario 0 vs. -1 
-   tn = df_dam(v, no_scen_nodams = F)
+       RT$damID = damids #percentage calc ==> damIDs need to be reattached
    
-   tn = tn[,1:3]
+       yo = bur %>% left_join(RT, by ="damID") %>% left_join(den , by = "damID")
+       
+ ## analyses of dam effects scenario 0 vs. -1
+     v =  pull_scen_var(vars = "TP_inflow",stat = mean, resolution = "dam")
+       
+     tp = df_dam(v, scen_nodams = F)
+     tp = tp[,1:3];names(tp)
+     yo = tp %>% left_join(dam_basin_match, by="damID")
+     scen = "Molar TN:TP"
+ ## TN:TP sometimes translation to molar weights is needed
+   tn = tn[,2:3]  / 14.01
+   tp = tp[,2:3]  / 30.97
    
-   # TN:TP sometimes translation to molar weights is needed
-    tn = a[,2:9]  / 14.01
-    tp = a[,2:9]  / 30.97
+   b = tn/tp
+   b <- log(b)
+  
     
-    b = tn/tp
-    b <- log(b)
-    
-   # Residence time = median(S_Rs_r)/total(Q_Rs + Q_down_r) 
-    
-    RT = sr[2:9]/(qr[2:9]+qs[2:9])
-    RT[RT == Inf]=0
-    
-    # RT[RT == 0] <- NA 
-    # RT =  ((RT[,2:8]-RT[,1])/RT[,1])*100
-    # RT[is.na(RT)] = 0
-    
-    # names(RT) = paste0(names(RT),"_rt")
-    RT$damID = damids #percentage calc ==> damIDs need to be reattached
-    
-  # dry and wet season comparison
+ ## dry and wet season comparison
     tn =  pull_scen_var(vars = "Q_Rs_r",stat = mean, resolution = "dam", dry_vs_wet = "wet")
     
     a =  df_dam(tn)
 
     yo = TNO %>% left_join(TNI, by = "damID") %>% left_join(RT, by ="damID")# this gets passed to scatter.R
     
-  # with percentage of scenario 0 
-    names(a)
-    a[a == 0] <- NA 
-    
-    b <- ((a[,3:9]-a[,2])/a[,2])*100
-    
-    b[is.na(b)] = 0
-    names(b)[1:7] = paste0(names(b)[1:7],"_wet")
-    
-    b$damID = damids #percentage calc ==> damIDs need to be reattached
-     
-    yo = wet %>% left_join(dry, by ="damID")# %>% left_join(a, by="damID") #yo is passed to scatter.R
-    
-  # simple bar plot  
+  
+ ## simple bar plot  
     l <- melt(b)
 
     ggplot(l) + geom_boxplot(aes(x=variable, y=value,fill=variable))+
@@ -329,18 +346,22 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
     # #1000x650 
 
     
-#### Dam-wise analysis, standardised bar plots
-    of_scen0_perc = function(a, suffix = "_new_data"){
-      if(ncol(a)!= 9 | nrow(a) != 769)return(NULL)
+#### get dams belonging to basin/estuary ####
+    dam_basin_match = data.frame()
+    for(basinX in rev(basin_names)){ #mask of basins/dams
       
-      a[a == 0] <- NA 
+      basin_idx <- which(basin_names == basinX) #which number in European basin (?)
+      reservoirs_basinX <- left_join(filter_catchment(tab, basins[basin_idx])[-1,-c(2,3)],#get all dams belonging to this basin
+                                     GRAND_data[,c(1,3,5)], by="GRAND_ID")
       
-      b <- ((a[,3:9]-a[,2])/a[,2])*100
+      res = reservoirs_basinX$GRAND_ID
+      res = data.frame(damID = res, basin = rep(basinX,length(res)))
       
-      b[is.na(b)] = 0
-      names(b)[1:7] = paste0(names(b)[1:7],suffix)
-      return(b)
+      dam_basin_match = rbind(dam_basin_match,res)
     }
+    
+    
+    
     
     
 #### in-depth analyses of observed patterns ####
