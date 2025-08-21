@@ -10,3 +10,5 @@ EMP/
 scripts/maps.R
 scripts/script_eflow_code_merging.R
 scripts/removal_reasons.R
+european_eflows.Rproj
+.RData
