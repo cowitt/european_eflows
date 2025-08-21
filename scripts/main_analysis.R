@@ -96,7 +96,7 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
                              # "F_Nd_up_r"
                              # "denitrification" ==> to run all denitrification processes
                              #release
-                             # "Q_Rs"
+                             # "Q_Rs_r"
                              # "Q_down_r"
                              #burial
                              # "F_Nb_Rs_r"
@@ -267,8 +267,8 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
   
     
 #### Analysis 1 variables that are analysed on basin scale ####
-    
-   v =  pull_scen_var(vars = "F_Nb_Rs_r",stat = mean, resolution = "dam")
+    # Residence time = median(S_Rs_r)/total(Q_Rs + Q_down_r) 
+   v =  pull_scen_var(vars = "TN_inflow",stat = mean, resolution = "dam")
     
    a = df_dam(v)
    
@@ -286,20 +286,23 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
     b <- log(b)
     
    # Residence time = median(S_Rs_r)/total(Q_Rs + Q_down_r) 
-    RT = sr[2:9]/(qr[2:9]+qs[2:9])
-    RT[RT == 0] <- NA 
     
-    RT =  ((RT[,2:8]-RT[,1])/RT[,1])*100
-    RT[is.na(RT)] = 0
-    names(RT) = paste0(names(RT),"_rt")
+    RT = sr[2:9]/(qr[2:9]+qs[2:9])
+    RT[RT == Inf]=0
+    
+    # RT[RT == 0] <- NA 
+    # RT =  ((RT[,2:8]-RT[,1])/RT[,1])*100
+    # RT[is.na(RT)] = 0
+    
+    # names(RT) = paste0(names(RT),"_rt")
     RT$damID = damids #percentage calc ==> damIDs need to be reattached
     
   # dry and wet season comparison
-    tn =  pull_scen_var(vars = "F_Nb_Rs_r",stat = mean, resolution = "dam", dry_vs_wet = "dry")
+    tn =  pull_scen_var(vars = "Q_Rs_r",stat = mean, resolution = "dam", dry_vs_wet = "wet")
     
     a =  df_dam(tn)
 
-    yo = tn %>% left_join(tp, by = "damID") # this gets passed to scatter.R
+    yo = TNO %>% left_join(TNI, by = "damID") %>% left_join(RT, by ="damID")# this gets passed to scatter.R
     
   # with percentage of scenario 0 
     names(a)
@@ -312,7 +315,7 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
     
     b$damID = damids #percentage calc ==> damIDs need to be reattached
      
-    yo = b %>% left_join(RT, by ="damID")# %>% left_join(a, by="damID") #yo is passed to scatter.R
+    yo = wet %>% left_join(dry, by ="damID")# %>% left_join(a, by="damID") #yo is passed to scatter.R
     
   # simple bar plot  
     l <- melt(b)
@@ -325,6 +328,21 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
     
     # #1000x650 
 
+    
+#### Dam-wise analysis, standardised bar plots
+    of_scen0_perc = function(a, suffix = "_new_data"){
+      if(ncol(a)!= 9 | nrow(a) != 769)return(NULL)
+      
+      a[a == 0] <- NA 
+      
+      b <- ((a[,3:9]-a[,2])/a[,2])*100
+      
+      b[is.na(b)] = 0
+      names(b)[1:7] = paste0(names(b)[1:7],suffix)
+      return(b)
+    }
+    
+    
 #### in-depth analyses of observed patterns ####
     v =  pull_scen_var(vars = "TN_inflow",stat = median, resolution = "dam")
     
