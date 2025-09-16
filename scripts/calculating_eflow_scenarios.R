@@ -1,17 +1,21 @@
-################################################################################
-#### Pre-processing for eflow scenarios: Calculating inflow statistics and eflow scenarios####
-
-setwd("Y:/Gruppen/cle/MichaS/Hatem/EuroFLOW_Paper/Group3/Task_3p3") #Change this path to the folder wher you have all your data in
+##############################################################################
+## Project: unnamed Euroflow modelling paper - preprocessing
+## Capabilities: Pre-processing for eflow scenarios: Calculating inflow statistics and eflow scenarios 
+## authors: Strauch M., Arias Font R., Pathak D.,...
+##############################################################################
+rm(list=ls())
+gc()
+setwd("C:/Users/wittekin/Documents/cle2024/projects/european_eflows/EMP/eflow_scenarios") #Change this path to the folder wher you have all your data in
 
 library(dplyr)
 library(lubridate)
 library(ggplot2)
 
 # load simulation results for naturalized flow
-sim <- readRDS("sim_all_boxmodel_seasT.RDS")
+sim <- readRDS("sim_all_boxm_noRes2.RDS")
 
 # extract inflows (so far only European rivers were modelled)
-inflow_ <- sim[[1]]$inflow
+inflow_ <- sim[[1]]$inflow #Cordi <<< to get the first and its data structure
 #Elbe_inflow <- sim$Elbe$inflow
 #row.names(Elbe_inflow)
 
@@ -66,9 +70,7 @@ q90 <- quantiles$q90
 q50 <- quantiles$q50
 
 #### Calculating eflow scenarios ####
-setwd("F:/mstrauch/EuroFLOW/Inputs/eflow_scenarios") #Change this path to the folder wher you have all your data in
-
-#i_efty <- 3 #Choose between 1-3 for the type of eflow method
+#i_efty <- 3 #Choose between 1-3 for the type of eflow method 
 #  Eflow_Type (variable name: i_efty)
 #1: constant whole year
 #2: variable on monthly basis
