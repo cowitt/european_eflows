@@ -281,71 +281,6 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
       return(b)
     }
     
-#### Analysis 1 variables that are analysed on basin scale ####
-    
-##this is the standard procedure 
-    ##1 get the variable of interest (3285 days = 9 years, spin-up already removed)
-      v =  pull_scen_var(vars = "TN_inflow",stat = mean, resolution = "dam")
-    
-    ##2 pull the right resolution dam or estuary
-      a = df_dam(v)
-    
-    ##3 (optional) calculate the difference to scenario 0
-      b = pct_vs_scenario0(a, suffix = "_tni")
-    
-    ##4 merge different datasets to pass to scatter.R
-      yo = b %>% left_join(c, by ="damID")
-      
-
- ## Residence time = median(S_Rs_r)/total(Q_Rs_r + Q_down_r) 
-   v =  pull_scen_var(vars = "denitrification",stat = mean, resolution = "dam")
-   
-   a = df_dam(v)
-
-       RT = sr[,2:9]/(qr[,2:9]+qs[,2:9])
-       RT = RT*3285
-       RT[RT == Inf]=0
-       names(den)[3:9] = paste0(names(den)[3:9],"_den")
-   
-       RT$damID = damids #percentage calc ==> damIDs need to be reattached
-   
-       yo = bur %>% left_join(RT, by ="damID") %>% left_join(den , by = "damID")
-       
- ## analyses of dam effects scenario 0 vs. -1
-     v =  pull_scen_var(vars = "TP_inflow",stat = mean, resolution = "dam")
-       
-     tp = df_dam(v, scen_nodams = F)
-     tp = tp[,1:3];names(tp)
-     yo = tp %>% left_join(dam_basin_match, by="damID")
-     scen = "Molar TN:TP"
- ## TN:TP sometimes translation to molar weights is needed
-   tn = tn[,2:3]  / 14.01
-   tp = tp[,2:3]  / 30.97
-   
-   b = tn/tp
-   b <- log(b)
-  
-    
- ## dry and wet season comparison
-    tn =  pull_scen_var(vars = "Q_Rs_r",stat = mean, resolution = "dam", dry_vs_wet = "wet")
-    
-    a =  df_dam(tn)
-
-    yo = TNO %>% left_join(TNI, by = "damID") %>% left_join(RT, by ="damID")# this gets passed to scatter.R
-    
-  
- ## simple bar plot  
-    l <- melt(b)
-
-    ggplot(l) + geom_boxplot(aes(x=variable, y=value,fill=variable))+
-      ggtitle(expression("Change in burial, compared to scenario 0, wet season"))  +
-      theme_bw()+theme(axis.title.y=element_text(size=25),axis.title.x=element_blank(), plot.title = element_text(size=15),
-                       axis.text = element_text(size=18),legend.position = "none")+
-      ylab("% change")+ylim(c(-92,100))
-    
-    # #1000x650 
-
-    
 #### get dams belonging to basin/estuary ####
     dam_basin_match = data.frame()
     for(basinX in rev(basin_names)){ #mask of basins/dams
@@ -358,10 +293,102 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
       res = data.frame(damID = res, basin = rep(basinX,length(res)))
       
       dam_basin_match = rbind(dam_basin_match,res)
-    }
+    }    
     
+#### Analysis 1 variables that are analysed on basin scale ####
     
+##this is the standard procedure 
+    ##1 get the variable of interest (3285 days = 9 years, spin-up already removed)
+      v =  pull_scen_var(vars = "TN_Rs_r",stat = mean, resolution = "dam")
     
+    ##2 pull the right resolution dam or estuary
+      a = df_dam(v)
+    
+    ##3 (optional) calculate the difference to scenario 0
+      c = pct_vs_scenario0(a, suffix = "_tno")
+    
+    ##4 merge different datasets to pass to scatter.R
+      yo = b %>% left_join(c, by ="damID")
+      
+
+ ## burial, denit, RT
+      v =  pull_scen_var(vars = "F_Nb_Rs_r",stat = sum, resolution = "dam")
+      bur = df_dam(v)
+      bur = pct_vs_scenario0(bur, suffix = "_bur")
+
+      v =  pull_scen_var(vars = "fixation",stat = sum, resolution = "dam")
+      fix = df_dam(v)
+      fix = pct_vs_scenario0(fix, suffix = "_fix")
+      
+      
+      v =  pull_scen_var(vars = "denitrification",stat = sum, resolution = "dam")
+      tpi = df_dam(v)
+      tpi = pct_vs_scenario0(tpi, suffix = "_den")
+      
+      allt = tpi + fix + bur
+      allt = pct_vs_scenario0(allt, suffix = "_allt")
+      
+      v =  pull_scen_var(vars = "TP_Rs_r",stat = sum, resolution = "dam")
+      tpo = df_dam(v)
+      tpo = pct_vs_scenario0(tpo, suffix = "_tpo")
+      
+      
+ ## Residence time = median(S_Rs_r)/sum(Q_Rs_r) 
+   v =  pull_scen_var(vars = "S_Rs_r",stat = median, resolution = "dam")
+   
+   sr = df_dam(v)
+
+       RT = sr[,2:9]/(qr[,2:9])
+       RT = RT*3285
+       RT[RT==0] = NA
+       
+       RT = ((RT[,2:8]-RT[,1])/RT[,1])*100
+       RT[is.na(RT)] = 0
+       RT$damID = qr$damID
+    
+       yo = RT %>% left_join(fix, by ="damID") %>% left_join(tpi, by ="damID")   
+       
+ ## analyses of dam effects scenario 0 vs. -1
+     v =  pull_scen_var(vars = "TN_inflow",stat = mean, resolution = "dam")
+     b = df_dam(v, scen_nodams = F)
+     b = b[,1:3]
+
+     yo = a %>% left_join(dam_basin_match, by = "damID")
+ 
+## TN:TP sometimes translation to molar weights is needed
+     v =  pull_scen_var(vars = "TP_inflow",stat = mean, resolution = "estuary")
+     tp = df_estuary(v, scen_nodams = F)
+     v =  pull_scen_var(vars = "TN_inflow",stat = mean, resolution = "estuary")
+     tn = df_estuary(v, scen_nodams = F)
+     
+   tn = tn  / 14.01 #standard atomic weights
+   tp = tp  / 30.97
+   
+   b = tn/tp
+   
+
+    
+ ## dry and wet season comparison 
+    v =  pull_scen_var(vars = "F_Nb_Rs_r",stat = mean, resolution = "dam", dry_vs_wet = "dry")
+    dry =  df_dam(v)
+    dry = pct_vs_scenario0(dry, suffix = "_dry")
+    
+    yo = dry %>% left_join(wet, by = "damID") 
+    
+  
+ ## simple bar plot  
+    l <- melt(b)
+
+    ggplot(l) + geom_boxplot(aes(x=variable, y=value,fill=variable))+
+      ggtitle(expression("Change in TN:TP ratio, compared to scenario 0, wet season"))  +
+      theme_bw()+theme(axis.title.y=element_text(size=25),axis.title.x=element_blank(), plot.title = element_text(size=15),
+                       axis.text = element_text(size=18),legend.position = "none")+
+      ylab("% change")#+ylim(c(-0.03,.17))
+    
+    # #1000x650 
+
+    
+
     
     
 #### in-depth analyses of observed patterns ####
@@ -456,5 +483,5 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
      axis.text = element_text(size = 19),
      legend.text = element_text(size = 23))#+ylim(0,350)
 
- 
- 
+
+        
