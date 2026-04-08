@@ -1,18 +1,16 @@
 ##############################################################################
 ## Project: unnamed Euroflow modelling paper - main analyses and prep for figures
-## Capabilities: Open, analyse, write and plot model outputs 
+## Capabilities: Open, analyse, write model outputs 
 ## Date created:  4.11.2021
 ## author: cordula.wittekind@ufz.de
 ##############################################################################
-rm(list=ls(all=TRUE)) 
-gc()
-setwd("C:/Users/wittekin/Documents/cle2024/projects/european_eflows/") #adapt path here
 
-# install required packages 
 library(foreign);library(dplyr);library(reshape);library(ggplot2);library(tidyverse);library(gridExtra);library(ggpubr);library(ncdf4)
 library(matrixStats) #for looking at ranks
 source("scripts/filter_catchment.R") # function to filter reservoir IDs for selected river basins
 
+script_dir <- dirname(normalizePath(sys.frames()[[1]]$ofile))
+setwd(file.path(script_dir, "..","data")) 
 
 # load scenarios into list called scena RUN ONCE
 scena = list()
@@ -300,138 +298,3 @@ for(scen in c(-1,0,1,2,3,4,5,6,7)){
       
       dam_basin_match = rbind(dam_basin_match,res)
     }    
-    
-#### Analysis 1 variables that are analysed on basin scale ####
-    
-##this is the standard procedure (yo is what I take to pass onto scatter.R)
-    ##1 get the variable of interest (3285 days = 9 years, spin-up already removed)
-      v =  pull_scen_var(vars = "TN_Rs_r",stat = mean, resolution = "dam")
-    
-    ##2 pull the right resolution dam or estuary
-      a = df_dam(v)
-    
-    ##3 (optional) calculate the difference to scenario 0
-      c = pct_vs_scenario0(a, suffix = "_tno")
-    
-    ##4 merge different datasets to pass to scatter.R
-      yo = b %>% left_join(c, by ="damID")
-      
-
- ## burial, denit, RT
-      v =  pull_scen_var(vars = "F_Nb_Rs_r",stat = sum, resolution = "estuary")
-      bur = df_dam(v)
-      bur = pct_vs_scenario0(bur, suffix = "_bur")
-
-      v =  pull_scen_var(vars = "fixation",stat = sum, resolution = "dam")
-      fix = df_dam(v)
-      fix = pct_vs_scenario0(fix, suffix = "_fix")
-      
-      
-      v =  pull_scen_var(vars = "denitrification",stat = sum, resolution = "dam")
-      den = df_dam(v)
-      den = pct_vs_scenario0(den, suffix = "_den")
-      
-      allt = den + fix + bur
-      allt = pct_vs_scenario0(allt, suffix = "_allt")
-      
-      v =  pull_scen_var(vars = "TP_Rs_r",stat = sum, resolution = "dam")
-      tpo = df_dam(v)
-      tpo = pct_vs_scenario0(tpo, suffix = "_tno")
-      
-      
-      v =  pull_scen_var(vars = "TP_inflow",stat = sum, resolution = "dam")
-      tpi = df_dam(v)  #tpi = df_dam(v,scen_nodams = F)
-      tpi = pct_vs_scenario0(tpi, suffix = "_tni")
-      
-      v =  pull_scen_var(vars = "TP_Rs_r",stat = mean, resolution = "dam")
-      tno = df_dam(v) # tno = df_dam(v,scen_nodams = F)
-      tno = pct_vs_scenario0(tno, suffix = "_tno")
-      
-      
- ## Residence time = median(S_Rs_r)/sum(Q_Rs_r) 
-   v =  pull_scen_var(vars = "S_Rs_r",stat = median, resolution = "dam")
-   
-   sr = df_dam(v)
-
-       RT = sr[,2:9]/(qr[,2:9])
-       RT = RT*3285
-       RT[RT==0] = NA
-       
-       RT = ((RT[,2:8]-RT[,1])/RT[,1])*100
-       RT[is.na(RT)] = 0
-       
-       
-       RT$damID = qr$damID
-       ## merge with other variables
-       yo = RT  %>% left_join(den, by = "damID")%>%left_join(bur, by ="damID")
-       
- ## analyses of dam effects scenario 0 vs. -1
-     v =  pull_scen_var(vars = "fixation",stat = mean, resolution = "dam")
-     c = df_dam(v, scen_nodams = F)
-     c = c[,1:3]
-     c = ((c[,3]-c[,2])/c[,2
-                         ])*100
-     
-     yo = RT %>% left_join(dam_basin_match, by = "damID")
-    
-     #bur+den-fix 
-     yo = yo %>% mutate(scen1 = `scenario -1_bur`+ `scenario -1_den` - `scenario -1_fix`)
-     yo = yo %>% mutate(scen0 = `scenario 0_bur`+ `scenario 0_den` - `scenario 0_fix`)
-
-     yo = yo %>% select(c(damID,scen1,scen0))
-     
-## TN:TP sometimes translation to molar weights is needed
-     v =  pull_scen_var(vars = "fixation",stat = sum, resolution = "estuary")
-     tp = df_estuary(v, scen_nodams = F)
-     tp = tp[,1:2]
-     tp$id = as.numeric(rownames(tp))
-     tp = tp %>% left_join(basin_id_match, by = "id")
-     
-     v =  pull_scen_var(vars = "TN_inflow",stat = mean, resolution = "estuary")
-     tn = df_estuary(v)
-     # tn = ((tn[,2:8]-tn[,1])/tn[,1])*100
-     
-   tn = tn  / 14.01 #standard atomic weights
-   tp = tp  / 30.97
-   
-   b = tn/tp
-   b$basin = rownames(b)
-   
- 
-   yo = b #%>% left_join(dam_basin_match, by = "basin")
-    
-   b = ((b[,2:8]-b[,1])/b[,1])*100
-   b$basin = rownames(b)
-   
- ## dry and wet season comparison 
-    v =  pull_scen_var(vars = "denitrification",stat = mean, resolution = "dam", dry_vs_wet = "wet")
-    tno =  df_dam(v)
-   
-    tnow = pct_vs_scenario0(tno, suffix = "_tno_wet")
-    #absolute difference
-    # tno <- (a[,3:9]-a[,2])
-    # names(tno)[1:7] = paste0(names(tno)[1:7],"_tno_wet")
-    # tno$damID = a$damID
-    
-    
-    yo = tnod %>% left_join(tnow, by = "damID") 
-    
-  
- ## simple bar plot  
-    
-    #subset to estuary groups
-    # b2 = b %>% filter(basin %in% trans$basin)
-    
-    #melty
-    l <- melt(b)
-
-    ggplot(l) + geom_boxplot(aes(x=variable, y=value,fill=variable, color = variable))+
-      ggtitle(expression("Change in TN:TP flowing into estuary, compared to scenario 0; Transition (16-20) estuaries (n = 10)"))  +
-      theme_bw()+theme(axis.title.y=element_text(size=25),axis.title.x=element_blank(), plot.title = element_text(size=15),
-                       axis.text = element_text(size=18),legend.position = "none")+
-      ylab("% change")#+scale_y_continuous( limits = c(-1,2.5))
-    
-    # #1000x650 
-
-
-    

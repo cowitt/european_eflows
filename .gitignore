@@ -2,13 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
-results_scen/
-input/
 figures/
-no_res/
-EMP/
-scripts/maps.R
+data/
 scripts/script_eflow_code_merging.R
 scripts/removal_reasons.R
-european_eflows.Rproj
+scripts/last_outlier_check.R
+scripts/figure_plots.R
 .RData*
