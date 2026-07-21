@@ -2,10 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
-figures/
+output/
 data/
 scripts/script_eflow_code_merging.R
 scripts/removal_reasons.R
 scripts/last_outlier_check.R
-scripts/figure_plots.R
 .RData*
+*.docx
