@@ -3,6 +3,7 @@
 ## Capabilities: plot model outputs
 ## Date created:  8.4.2026
 ## author: cordula.wittekind@ufz.de
+## comments: careful to only use sum when working with ratios and percentage
 ##############################################################################
 rm(list=ls(all=TRUE))
 gc()
@@ -213,9 +214,10 @@ for(scen in scens){
           legend.position = "none",
           legend.text = element_text(size=13.5),
           legend.title = element_text(size=15))+
-    scale_y_continuous(limits = c(-400,6842),
-      trans = custom_trans(),breaks = c(-100,-50,0,50,100,6000),
-      labels = function(x) ifelse(abs(x) >= 1000, paste0(x / 1000, "k"), x))+
+    scale_y_continuous(limits = c(-100,100))+
+    # scale_y_continuous(limits = c(-400,6842),
+      # trans = custom_trans(),breaks = c(-100,-50,0,50,100,6000),
+      # labels = function(x) ifelse(abs(x) >= 1000, paste0(x / 1000, "k"), x))+
     
      scale_x_continuous(limits = c(-100,7))+
     xlab("Change in residence time (%)") +
@@ -228,6 +230,10 @@ m <- matrix(c(1, 2, 3,4,
               5, 6, 7,8), ncol=4, byrow=TRUE)
 
 grid.arrange(grobs = sc, layout_matrix = m)  #1000x500/1600x800 with 9 landscape, 1200x850 with 9 square 
+
+#count outliers
+# yo %>% select(-damID)%>% filter(if_any(everything(), ~ abs(.x) > 100)) %>%  nrow()
+
 
 
 # BC2 - TP retention 
@@ -280,9 +286,10 @@ for(scen in scens){
           legend.position = "none",
           legend.text = element_text(size=13.5),
           legend.title = element_text(size=15))+
-    scale_y_continuous(limits = c(-100,530),
-                       trans = custom_trans(),breaks = c(-100,-50,0,50,100),
-                       labels = function(x) ifelse(abs(x) >= 1000, paste0(x / 1000, "k"), x))+
+    scale_y_continuous(limits = c(-100,100))+
+    # scale_y_continuous(limits = c(-100,530),
+                       # trans = custom_trans(),breaks = c(-100,-50,0,50,100),
+                       # labels = function(x) ifelse(abs(x) >= 1000, paste0(x / 1000, "k"), x))+
     
     scale_x_continuous(limits = c(-100,7))+
     xlab("Change in residence time (%)") +
@@ -593,6 +600,9 @@ m <- matrix(c(1, 2, 3,4,
 
 grid.arrange(grobs = sc, layout_matrix = m)  #1000x500/1600x800 with 9 landscape, 1200x850 with 9 square 
 
+#count outliers
+yo %>% select(-damID)%>% filter(if_any(everything(), ~ abs(.x) > 250)) %>%  nrow()
+
 
 ## FG - changes in denit and nitrogen fixation in dry and wet season ###########
 # FG1 - denitrification
@@ -668,7 +678,7 @@ grid.arrange(grobs = sc, layout_matrix = m)  #1000x500/1600x800 with 9 landscape
 
 
 
-## GH - changes in retention in dry/wet season
+## GH - changes in retention in dry/wet season ####
 # TN retention 
 v =  pull_scen_var(vars = "TN_inflow",stat = sum, resolution = "dam", dry_vs_wet = "wet")
 a = df_dam(v)
@@ -759,8 +769,8 @@ for(scen in scens){
           legend.title = element_text(size=15))+
     scale_y_continuous(limits = c(-100,100))+
     
-    scale_x_continuous(limits = c(-1000,1000),trans = custom_trans(),breaks = c(-100,-50,0,50,100),
-                       labels = function(x) ifelse(abs(x) >= 1000, paste0(x / 1000, "k"), x))+
+    # scale_x_continuous(limits = c(-1000,1000),trans = custom_trans(),breaks = c(-100,-50,0,50,100),
+                       # labels = function(x) ifelse(abs(x) >= 1000, paste0(x / 1000, "k"), x))+
     xlab("Change during dry season (%)") +
     ylab("Change during wet season (%)")
   
@@ -772,6 +782,8 @@ m <- matrix(c(1, 2, 3,4,
 
 grid.arrange(grobs = sc, layout_matrix = m)  #1000x500/1600x800 with 9 landscape, 1200x850 with 9 square 
 
+#count outliers
+yo %>% select(-damID)%>% filter(if_any(everything(), ~ abs(.x) > 100)) %>%  nrow()
 
 ## FGB - FG with two sideways columns
 #wet
@@ -1023,8 +1035,8 @@ for (var i = 0; i < legendItems.length; i++) {
 htmlwidgets::saveWidget(k, "temp.html", selfcontained = FALSE)
 webshot::webshot("temp.html", file = "../../output/maps/delta_scen0_scen-1.png", cliprect = "viewport", vwidth = 980, vheight = 940)
 
-#IJb scatter plots
-v =  pull_scen_var(vars = "F_Nb_Rs_r",stat = sum, resolution = "dam")
+#IJb scatter plots NOT SUM! this is not a percentage or ratio
+v =  pull_scen_var(vars = "F_Pb_Rs_r",stat = mean, resolution = "dam")
 den = df_dam(v, scen_nodams = F)
 den = den[,1:3]
 
@@ -1045,7 +1057,7 @@ ggplot(den,  aes(x = `scenario -1` , y =`scenario 0` ))+
         legend.position = "none",
         legend.text = element_text(size=13.5),
         legend.title = element_text(size=15))+
- xlab("without dams (t/day)") + ylab("baseline / with dams (t/day)")
+ xlab("without dams (t/day)") + ylab("baseline / with dams (t/day)") #1000x800
 
 ## JK - changes in burial, high and low flow (A3 is the same for Phosphorus) #######
 
